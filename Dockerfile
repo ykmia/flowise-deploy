@@ -1,13 +1,29 @@
-FROM node:20
+# ---- Base image -------------------------------------------------------------
+FROM node:18-bullseye AS build
 
+# évite d’installer des packages inutiles
+ENV NPM_CONFIG_LOGLEVEL=warn
+
+# Clone Flowise source
+RUN git clone --depth 1 https://github.com/FlowiseAI/Flowise.git /app
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y git
+# Installe en ignorant les peer-deps stricts
+RUN npm ci --legacy-peer-deps
 
-RUN git clone https://github.com/FlowiseAI/Flowise.git .
+# Build Flowise
+RUN npm run build
 
-RUN npm install
+# ---- Runtime image ----------------------------------------------------------
+FROM node:18-bullseye
 
+# Copie les fichiers buildés
+COPY --from=build /app /app
+WORKDIR /app
+
+# Port d’écoute
+ENV PORT=3000
 EXPOSE 3000
 
+# Lance le serveur
 CMD ["npm", "run", "start"]
